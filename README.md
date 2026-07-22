@@ -274,7 +274,7 @@ Preencha todas as seções abaixo de forma **clara, objetiva e técnica**.
 
 ### Identificação do Candidato
 - **Nome completo:** Victor Henrick Santos Andrade
-- **GitHub:** [SEU LINK AQUI]
+- **GitHub:** https://github.com/vituandrade/processoseletivoIoT
 
 ---
 
