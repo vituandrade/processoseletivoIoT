@@ -1,63 +1,64 @@
-import machine
+from machine import Pin, ADC
 import time
 
-# Configuração dos Pinos
-PINO_LDR = 34
-PINO_BOTAO = 4
+# ============================================================
+# Contador de Producao Nao-Intrusivo - Firmware ESP32
+# ============================================================
 
-# Inicialização do ADC (LDR) e Botão
-adc = machine.ADC(machine.Pin(PINO_LDR))
-adc.atten(machine.ADC.ATTN_11DB) # Permite leitura de 0 a 3.3V (0-4095)
-btn = machine.Pin(PINO_BOTAO, machine.Pin.IN, machine.Pin.PULL_UP)
+# --- Configuracao de Hardware ---
+ldr = ADC(Pin(34))
+ldr.atten(ADC.ATTN_11DB)           # Habilita leitura em toda a faixa 0-3.3V (0-4095)
 
-# Variáveis de Estado
-total_pecas = 0
-peca_passando = False
-tempo_bloqueio_inicio = 0
-alerta_parada_emitido = False
+btn = Pin(4, Pin.IN, Pin.PULL_UP)  # Pull-up interno, acionamento em GND
 
-# Limiares Parametrizados
-LIMIAR_BLOQUEIO = 2500 
-LIMITE_PARADA_MS = 5000 
+# --- Constantes de Configuracao ---
+LIMIAR_ESCURO = 2000                # ADC > 2000 = peca bloqueando o sensor (sombra)
+TEMPO_MICROPARADA_MS = 5000          # 5s continuos bloqueado = alerta de microparada
+DEBOUNCE_MS = 50                     # Debounce simples do botao de reset
+
+# --- Variaveis de Estado ---
+contador_pecas = 0
+estado_anterior_escuro = False
+tempo_inicio_escuro = 0
+alerta_emitido = False
 
 print("Contador de Producao Inicializado")
 
 while True:
-    valor_ldr = adc.read()
-    
-    # Se a luz cai abruptamente, a tensão e a leitura do ADC no Wokwi diminuem.
-    bloqueado = valor_ldr < LIMIAR_BLOQUEIO
-    
-    if bloqueado:
-        if not peca_passando:
-            peca_passando = True
-            tempo_bloqueio_inicio = time.ticks_ms()
-            alerta_parada_emitido = False
-        else:
-            tempo_bloqueado = time.ticks_diff(time.ticks_ms(), tempo_bloqueio_inicio)
-            if not alerta_parada_emitido and tempo_bloqueado >= LIMITE_PARADA_MS:
-                print("Alerta: Micro-parada detectada!")
-                alerta_parada_emitido = True
-    else:
-        if peca_passando:
-            # Borda de subida (a peça terminou de passar e a luz voltou)
-            total_pecas += 1
-            print(f"Peca detectada! Total: {total_pecas}")
-            peca_passando = False
-            alerta_parada_emitido = False
+    # --- Leitura continua do sensor optico ---
+    leitura = ldr.read()
+    escuro_agora = leitura > LIMIAR_ESCURO
 
-    # Rotina de Reset de Turno com Debounce
+    # --- Borda de subida: peca comecou a bloquear a luz ---
+    if escuro_agora and not estado_anterior_escuro:
+        tempo_inicio_escuro = time.ticks_ms()
+        alerta_emitido = False
+
+    # --- Enquanto bloqueado: monitora microparada (nao-bloqueante) ---
+    if escuro_agora:
+        tempo_bloqueado = time.ticks_diff(time.ticks_ms(), tempo_inicio_escuro)
+        if tempo_bloqueado >= TEMPO_MICROPARADA_MS and not alerta_emitido:
+            print("Alerta: Micro-parada detectada!")
+            alerta_emitido = True
+
+    # --- Borda de descida: luz normalizou, peca concluiu a passagem ---
+    if not escuro_agora and estado_anterior_escuro:
+        contador_pecas += 1
+        print(f"Peca detectada! Total: {contador_pecas}")
+
+    estado_anterior_escuro = escuro_agora
+
+    # --- Botao de reset (Pull-Up / ativo em nivel baixo) ---
     if btn.value() == 0:
-        time.sleep_ms(50)
-        if btn.value() == 0:
-            total_pecas = 0
-            peca_passando = False
-            alerta_parada_emitido = False
-            print("Turno resetado com sucesso. Contadores zerados.")
-            
-            # Trava para aguardar o operador soltar o botão
-            while btn.value() == 0:
-                time.sleep_ms(20)
+        time.sleep_ms(DEBOUNCE_MS)          # debounce simples
+        if btn.value() == 0:                # confirma pressionamento apos debounce
+            contador_pecas = 0
+            estado_anterior_escuro = False
+            alerta_emitido = False
 
-    # Suspiro da CPU para o Simulador
-    time.sleep_ms(20)
+            while btn.value() == 0:         # trava ate o operador soltar o botao
+                pass
+
+            print("Turno resetado com sucesso. Contadores zerados.")
+
+    time.sleep_ms(10)   # pequena pausa para nao saturar a CPU

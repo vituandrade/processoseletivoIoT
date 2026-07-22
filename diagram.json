@@ -1,20 +1,38 @@
 {
   "version": 1,
-  "author": "Victor",
+  "author": "Contador de Producao Nao-Intrusivo",
   "editor": "wokwi",
   "parts": [
-    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
-    { "type": "wokwi-photoresistor-sensor", "id": "ldr1", "top": -80, "left": 150, "attrs": {} },
-    { "type": "wokwi-pushbutton", "id": "btn1", "top": 80, "left": 150, "attrs": { "color": "green" } }
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-photoresistor-sensor",
+      "id": "ldr1",
+      "top": -110,
+      "left": 200,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 130,
+      "left": 210,
+      "attrs": { "color": "red" }
+    }
   ],
   "connections": [
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
     [ "esp:RX", "$serialMonitor:TX", "", [] ],
-    [ "ldr1:VCC", "esp:3V3", "red", [] ],
-    [ "ldr1:GND", "esp:GND.1", "black", [] ],
-    [ "ldr1:AO", "esp:34", "green", [] ],
-    [ "btn1:1.l", "esp:GND.1", "black", [] ],
-    [ "btn1:2.l", "esp:4", "blue", [] ]
+    [ "ldr1:AO", "esp:34", "green", [ "h0" ] ],
+    [ "ldr1:VCC", "esp:3V3", "red", [ "h0" ] ],
+    [ "ldr1:GND", "esp:GND.1", "black", [ "h0" ] ],
+    [ "btn1:1.l", "esp:4", "green", [ "h0" ] ],
+    [ "btn1:2.l", "esp:GND.2", "black", [ "h0" ] ]
   ],
   "dependencies": {}
 }
